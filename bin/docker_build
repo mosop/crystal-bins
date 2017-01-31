@@ -1,0 +1,6 @@
+#!/usr/bin/env bash
+docker build \
+  --build-arg target=$1 \
+  --build-arg ver=$2 \
+  --build-arg pkgver=$3 \
+  -f dockerfiles/$1.Dockerfile -t mosop/crystal-bins-$1:$3 .

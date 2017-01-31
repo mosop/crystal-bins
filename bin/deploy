@@ -1,0 +1,9 @@
+#!/usr/bin/env bash
+current=`pwd`
+cd build
+id=$(docker create mosop/crystal-bins-$1:$2)
+docker cp $id:/crystal-$1-$2.o $1-$2.o
+docker rm -v $id
+tar zcvf $1-$2.tar.gz $1-$2.o
+rm $1-$2.o
+cd $current
