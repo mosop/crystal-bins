@@ -1,10 +1,10 @@
 FROM ubuntu:14.04.5
 
-ARG ver
 ARG pkgver
 ARG target
 
 RUN \
+  ver=`echo $pkgver | sed -e 's/-[0-9]//'` && \
   apt-get update && \
   apt-get install -y --force-yes software-properties-common apt-transport-https && \
   apt-add-repository "deb http://llvm.org/apt/trusty/ llvm-toolchain-trusty-3.8 main" && \
@@ -14,7 +14,7 @@ RUN \
   export PATH=/opt/crystal/bin:$PATH && \
   git clone --depth=1 -b $ver https://github.com/crystal-lang/crystal.git && \
   cd crystal && \
-  CRYSTAL_CONFIG_VERSION=$ver crystal build -o ../crystal-$target-$pkgver src/compiler/crystal.cr \
+  CRYSTAL_CONFIG_VERSION=$ver crystal build -o ../crystal-$pkgver-$target src/compiler/crystal.cr \
     -D i_know_what_im_doing -D without_openssl -D without_zlib \
     --cross-compile --target $target \
     --stats --verbose && \

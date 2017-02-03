@@ -1,9 +1,13 @@
 #!/usr/bin/env bash
 current=`pwd`
+basename=crystal-$1-$2
+tar=$basename.o.tar.gz
+o=$basename.o
 cd build
-id=$(docker create mosop/crystal-bins-$1:$2)
-docker cp $id:/crystal-$1-$2.o $1-$2.o
+id=$(docker create mosop/crystal-bins-$2:$1)
+docker cp $id:/$o $o
 docker rm -v $id
-tar zcvf $1-$2.tar.gz $1-$2.o
-rm $1-$2.o
+rm -f $tar
+tar zcvf $tar $o
+rm $o
 cd $current
