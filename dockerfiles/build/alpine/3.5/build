@@ -1,0 +1,4 @@
+#!/usr/bin/env bash
+
+root="$( cd "$( dirname "${BASH_SOURCE[0]}" )/../../../.." && pwd )"
+ARGS="--build-arg spec=spec --build-arg ignore_failure=ignore_failure" $root/bin/docker_build build alpine 3.5

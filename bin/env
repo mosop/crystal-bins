@@ -1,0 +1,127 @@
+#!/bin/sh
+
+root="$( cd "$( dirname "$0" )/.." && pwd )"
+
+export_env() {
+  eval $1="$2"
+  echo "export $1=\"""$2""\""
+}
+
+export_env builddir $root/build
+export_env patchesdir $root/patches
+export_env pkgver 0.20.5-1
+export_env ver `echo $pkgver | sed -e 's/-[0-9]//'`
+export_env rev 20170207
+
+which llvm-config-3.9 >/dev/null
+if [ $? -eq 0 ]; then
+  export_env which_llvm39 llvm-config-3.9
+else
+  export_env which_llvm39
+fi
+
+which llvm-config-3.8 >/dev/null
+if [ $? -eq 0 ]; then
+  export_env which_llvm38 llvm-config-3.8
+else
+  export_env which_llvm38
+fi
+
+which llvm-config >/dev/null
+if [ $? -eq 0 ]; then
+  export_env which_llvm llvm-config
+else
+  export_env which_llvm
+fi
+
+if [ -n "$which_llvm39" ]; then
+  export_env llvm_config $which_llvm39
+elif [ -n "$which_llvm" ]; then
+  export_env llvm_config $which_llvm
+elif [ -n "$which_llvm38" ]; then
+  export_env llvm_config $which_llvm38
+else
+  echo "llvm-config not found." >/dev/stderr
+  exit 1
+fi
+
+llvm_target="$($llvm_config --host-target)"
+test $? -eq 0 || exit 1
+export_env llvm_target $llvm_target
+
+case "$llvm_target" in
+  *alpine*)
+    export_env is_alpine 1
+    export_env target $llvm_target
+    ;;
+  *)
+    export_env is_alpine 0
+    ;;
+esac
+
+case "$llvm_target" in
+  *musl*)
+    export_env is_musl 1
+    ;;
+  *)
+    export_env is_musl 0
+    ;;
+esac
+
+case "$llvm_target" in
+  *linux*)
+    export_env is_linux 1
+    ;;
+  *)
+    export_env is_linux 0
+    ;;
+esac
+
+case "$llvm_target" in
+  *gnu*)
+    export_env is_gnu 1
+    export_env target $llvm_target
+    ;;
+  *)
+    export_env is_gnu 0
+    ;;
+esac
+
+case "$llvm_target" in
+  *darwin*)
+    export_env is_darwin 1
+    export_env target x86_64-apple-darwin
+    ;;
+  *)
+    export_env is_darwin 0
+    ;;
+esac
+
+uid=`id -u`
+test $? -eq 0 || exit 1
+if [ "$uid" = "0" ]; then
+  export_env sudo ""
+  export_env needs_sudo 0
+else
+  export_env sudo "sudo "
+  export_env needs_sudo 1
+fi
+
+export_env prefix /usr/local/mosop
+
+export_env mosop_bdwgc_version 7_6_0
+export_env mosop_libatomic_ops_version 7_4_4
+export_env mosop_bdwgc_prefix $prefix/bdwgc/$mosop_bdwgc_version
+export_env mosop_bdwgc_lib_dir $mosop_bdwgc_prefix/lib
+export_env mosop_bdwgc_lib $mosop_bdwgc_lib_dir/libgc.so
+export_env mosop_bdwgc_pkgconfig_dir $mosop_bdwgc_lib_dir/pkgconfig
+
+export_env mosop_crystal_build_dir $builddir/crystal/$ver
+export_env mosop_crystal_build_bin $mosop_crystal_build_dir/.bin/crystal
+
+export_env mosop_shards_version 0.7.1
+export_env mosop_shards_build_dir $builddir/shards/$mosop_shards_version
+export_env mosop_shards_build_bin $mosop_crystal_build_dir/bin/shards
+
+export_env mosop_crystal_dir $prefix/crystal/$ver
+export_env mosop_crystal_bin $mosop_crystal_dir/.bin/crystal

@@ -1,0 +1,56 @@
+#!/usr/bin/env bash
+
+current=`pwd`
+root="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
+
+env="$($root/bin/env)" || _abort
+eval "$env"
+
+targets=(x86_64-alpine-linux-musl x86_64-apple-darwin x86_64-unknown-linux-gnu)
+crystal_o_build_dir=$builddir/crystal_o/$ver
+
+_abort() {
+  _exit 1
+}
+
+_exit() {
+  cd $current
+  exit $1
+}
+
+rm -rf $crystal_o_build_dir
+mkdir -p $crystal_o_build_dir
+cd $crystal_o_build_dir
+curl -L -O https://github.com/crystal-lang/crystal/archive/$ver.tar.gz || _abort
+tar xzf $ver.tar.gz --strip-components=1 || _abort
+rm $ver.tar.gz
+$root/bin/patch $ver || _abort
+
+for target in ${targets[@]}; do
+  base=crystal-$pkgver-$target
+  file=$base.o
+  tar=$file.tar.gz
+  if [ -f $builddir/$tar ]; then
+    continue
+  fi
+  if [ ! -f $builddir/$file ]; then
+    cd $crystal_o_build_dir
+    echo $file...
+    if [[ $target =~ "alpine" ]]; then
+      llvm_config=`brew --prefix llvm38`/bin/llvm-config-3.8
+    else
+      llvm_config=`brew --prefix llvm`/bin/llvm-config
+    fi
+    LLVM_CONFIG=$llvm_config CRYSTAL_CONFIG_VERSION=$ver crystal build -o $builddir/$base src/compiler/crystal.cr \
+      -D i_know_what_im_doing -D without_openssl -D without_zlib \
+      --cross-compile --target $target \
+      --release \
+      --stats \
+      || _abort
+  fi
+  cd $builddir
+  tar zcvf $tar $file || _abort
+  rm $file
+done
+
+_exit 0

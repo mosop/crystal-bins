@@ -1,0 +1,2 @@
+export LIBRARY_PATH="/usr/local/mosop/crystal/bdwgc/7_6_0/lib:$LIBRARY_PATH"
+export LD_LIBRARY_PATH="/usr/local/mosop/crystal/bdwgc/7_6_0/lib:$LD_LIBRARY_PATH"

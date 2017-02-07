@@ -1,0 +1,278 @@
+#!/bin/sh
+
+current=`pwd`
+root="$( cd "$( dirname "$0" )/.." && pwd )"
+opts="$@"
+
+case "$opts" in
+  *ignore_failure*)
+    ignore_failure=1
+    ;;
+  *)
+    ignore_failure=0
+    ;;
+esac
+
+_exit() {
+  cd $current
+  exit $1
+}
+
+_abort() {
+  if [ -n "$1" ]; then
+    echo "$1"
+  fi
+  _exit 1
+}
+
+env="$($root/bin/env)" || _abort
+eval "$env"
+$root/bin/print_env || _abort
+
+install_bdwgc() {
+  test $is_darwin -eq 1 && return 0
+  test -f $mosop_bdwgc_lib && return 0
+  echo "Installing BDWGC..."
+  local dir=$builddir/bdwgc/$mosop_bdwgc_version
+  rm -rf $dir
+  mkdir -p $dir
+  cd $dir
+  local tar=gc$mosop_bdwgc_version.tar.gz
+  curl -L -O https://github.com/ivmai/bdwgc/archive/$tar || _abort
+  tar xzf $tar --strip-components=1 || _abort
+  rm $tar
+  mkdir libatomic_ops
+  cd libatomic_ops
+  tar=libatomic_ops-$mosop_libatomic_ops_version.tar.gz
+  curl -L -O https://github.com/ivmai/libatomic_ops/archive/$tar || _abort
+  tar xzf $tar --strip-components=1 || _abort
+  cd $dir
+  local cflags=""
+  if [ $is_musl -eq 1 ]; then
+    cflags="$cflags -DHAVE_DL_ITERATE_PHDR"
+    local patch=$patchesdir/bdwgc/$mosop_bdwgc_version/musl/patch.diff
+    if [ -f $patch ]; then
+      cat $patch | patch -p1 || _abort
+    fi
+  fi
+  autoreconf -vif || _abort
+  automake --add-missing || _abort
+  CFLAGS="$cflags" ./configure --prefix=$mosop_bdwgc_prefix
+  make
+  ${sudo}make install || _abort
+  return 0
+}
+
+download_crystal() {
+  test -d $mosop_crystal_build_dir && return 0
+  echo "Downloading Crystal Source..."
+  mkdir -p $mosop_crystal_build_dir
+  cd $mosop_crystal_build_dir
+  rm -f $ver.tar.gz
+  curl -L -O https://github.com/crystal-lang/crystal/archive/$ver.tar.gz || _abort
+  tar xzf $ver.tar.gz --strip-components=1 || _abort
+  rm $ver.tar.gz
+  $root/bin/patch $ver || _abort
+  return 0
+}
+
+build_crystal() {
+  test -f $mosop_crystal_build_bin && return 0
+  download_crystal || _abort
+  echo "Building Crystal..."
+  cd $mosop_crystal_build_dir
+  local prebuiltbase=crystal-$pkgver-$target.o
+  local prebuilt=$mosop_crystal_build_dir/$prebuiltbase
+  local tar=$prebuilt.tar.gz
+  rm -f $tar
+  curl -L -O https://github.com/mosop/crystal-bins/releases/download/$ver-build$rev/$prebuiltbase.tar.gz > $tar || _abort
+  tar xzf $tar || _abort
+  rm $tar
+  g++ -c -o src/llvm/ext/llvm_ext.o src/llvm/ext/llvm_ext.cc `$llvm_config --cxxflags` || _abort
+  local objs=""
+  local i
+  for i in $(find src/ext -name '*.c'); do
+    local o=`echo $i | sed -e 's/.c$/.o/'`
+    cc -fPIC -c -o $o $i || _abort
+    objs="$objs $o"
+  done
+  ar -rcs src/ext/libcrystal.a $objs || _abort
+  mkdir -p `dirname $mosop_crystal_build_bin`
+  local lrt=""
+  local liconv=""
+  if [ $is_darwin -eq 0 ]; then
+    lrt="-lrt"
+  fi
+  if [ $is_darwin -eq 1 ]; then
+    liconv="-liconv"
+  fi
+  local libdirs=""
+  if [ $is_linux -eq 1 ]; then
+    libdirs="$libdirs -L$mosop_bdwgc_lib_dir"
+  fi
+  cc $prebuilt -o $mosop_crystal_build_bin \
+    -rdynamic \
+    src/llvm/ext/llvm_ext.o \
+    `$llvm_config --libs --system-libs --ldflags` \
+    -lstdc++ -lpcre -lm -lgc -lpthread src/ext/libcrystal.a -levent $lrt $liconv -ldl $libdirs \
+    || _abort
+  echo "#!/bin/sh" > bin/crystal
+  if [ $is_linux -eq 1 ]; then
+    echo "export LD_LIBRARY_PATH=\"$mosop_bdwgc_lib_dir:\$LD_LIBRARY_PATH\"" >> bin/crystal
+    echo "export LIBRARY_PATH=\"$mosop_bdwgc_lib_dir:\$LIBRARY_PATH\"" >> bin/crystal
+  fi
+  echo "export PATH=\"`pwd`/.bin:\$PATH\"" >> bin/crystal
+  echo "export CRYSTAL_PATH=\"`pwd`/src:lib\"" >> bin/crystal
+  echo "export CRYSTAL_HAS_WRAPPER=true" >> bin/crystal
+  echo "exec \"`pwd`/.bin/crystal\" \"\$@\"" >> bin/crystal
+  return 0
+}
+
+download_shards() {
+  test -d $mosop_shards_build_dir && return 0
+  echo "Downloading Shards Source..."
+  mkdir -p $mosop_shards_build_dir
+  cd $mosop_shards_build_dir
+  local tar=v$mosop_shards_version.tar.gz
+  rm -f $tar
+  curl -L -O https://github.com/crystal-lang/shards/archive/$tar || _abort
+  tar xzf $tar --strip-components=1 || _abort
+  rm $tar
+  return 0
+}
+
+build_shards() {
+  test -f $mosop_shards_build_bin && return 0
+  download_shards || _abort
+  echo "Building Shards..."
+  cd $mosop_shards_build_dir
+  $mosop_crystal_build_dir/bin/crystal build src/shards.cr --release --stats || _abort
+  mv shards $mosop_shards_build_bin || _abort
+  return 0
+}
+
+build_compiler_spec() {
+  local spec=$mosop_crystal_build_dir/compiler_spec
+  test -f $spec && return 0
+  build_crystal || _abort
+  echo "Building compiler spec..."
+  cd $mosop_crystal_build_dir
+  $mosop_crystal_build_dir/bin/crystal build spec/compiler_spec.cr -o compiler_spec \
+    --stats || _abort
+  return 0
+}
+
+build_std_spec() {
+  local spec=$mosop_crystal_build_dir/std_spec
+  test -f $spec && return 0
+  build_crystal || _abort
+  echo "Building std spec..."
+  cd $mosop_crystal_build_dir
+  $mosop_crystal_build_dir/bin/crystal build spec/std_spec.cr -o std_spec \
+    --stats || _abort
+  return 0
+}
+
+spec() {
+  compiler_spec || _abort
+  std_spec || _abort
+  return 0
+}
+
+compiler_spec() {
+  build_compiler_spec || _abort
+  echo "Running compiler spec..."
+  LD_LIBRARY_PATH="$mosop_bdwgc_lib_dir:$LIBRARY_PATH" LIBRARY_PATH="$mosop_bdwgc_lib_dir:$LIBRARY_PATH" \
+    $mosop_crystal_build_dir/compiler_spec || test $ignore_failure -eq 1 || _abort
+  return 0
+}
+
+std_spec() {
+  build_std_spec || _abort
+  echo "Running std spec..."
+  LD_LIBRARY_PATH="$mosop_bdwgc_lib_dir:$LIBRARY_PATH" LIBRARY_PATH="$mosop_bdwgc_lib_dir:$LIBRARY_PATH" \
+    $mosop_crystal_build_dir/std_spec || test $ignore_failure -eq 1 || _abort
+  return 0
+}
+
+install() {
+  test -f $mosop_crystal_bin && return 0
+  echo "Installing Crystal and Shards..."
+  ${sudo}rm -rf $mosop_crystal_dir || _abort
+  ${sudo}mkdir -p `dirname $mosop_crystal_dir` || _abort
+  ${sudo}cp -r $mosop_crystal_build_dir $mosop_crystal_dir || _abort
+  local script=$mosop_crystal_dir/bin/crystal
+  echo "#!/bin/sh" | ${sudo}tee $script >/dev/null || _abort
+  if [ $is_linux -eq 1 ]; then
+    echo "export LD_LIBRARY_PATH=\"$mosop_bdwgc_lib_dir:\$LD_LIBRARY_PATH\"" | ${sudo}tee -a $script >/dev/null || _abort
+    echo "export LIBRARY_PATH=\"$mosop_bdwgc_lib_dir:\$LIBRARY_PATH\"" | ${sudo}tee -a $script >/dev/null || _abort
+  fi
+  echo "export PATH=\"$mosop_crystal_dir/.bin:\$PATH\"" | ${sudo}tee -a $script >/dev/null || _abort
+  echo "export CRYSTAL_PATH=\"$mosop_crystal_dir/src:lib\"" | ${sudo}tee -a $script >/dev/null || _abort
+  echo "export CRYSTAL_HAS_WRAPPER=true" | ${sudo}tee -a $script >/dev/null || _abort
+  echo "exec \"$mosop_crystal_bin\" \"\$@\"" | ${sudo}tee -a $script >/dev/null || _abort
+  echo crystal: $mosop_crystal_dir/bin/crystal
+  echo shards: $mosop_crystal_dir/bin/shards
+  return 0
+}
+
+symlink() {
+  install || _abort
+  ${sudo}mkdir -p /usr/local/bin || _abort
+  ${sudo}ln -sfn $mosop_crystal_dir/bin/crystal /usr/local/bin/crystal || _abort
+  ${sudo}ln -sfn $mosop_crystal_dir/bin/shards /usr/local/bin/shards || _abort
+  echo "/usr/local/bin/crystal -> $mosop_crystal_dir/bin/crystal"
+  echo "/usr/local/bin/crystal -> $mosop_crystal_dir/bin/shards"
+  return 0
+}
+
+crenv() {
+  install || _abort
+  crenv="$(which crenv)"
+  test $? -eq 0 || _abort "crenv not found."
+  crenvdir=`echo $crenv | sed -e 's/\/crenv\$//'`
+  versions="$( cd $crenvdir/../versions && pwd )"
+  test $? -eq 0 || _abort "crenv versions directory not found."
+  to=/usr/local/mosop/crystal/$ver
+  link=$versions/$ver
+  rm -rf "$link"
+  ln -nfs "$to" "$link"
+  echo "$link -> $to"
+  return 0
+}
+
+install_bdwgc || _abort
+build_crystal || _abort
+build_shards || _abort
+
+case "$opts" in
+  *compiler_spec*)
+    compiler_spec || _abort
+  ;;
+  *std_spec*)
+    std_spec || _abort
+  ;;
+  *spec*)
+    spec || _abort
+  ;;
+esac
+
+case "$opts" in
+  *install*)
+    install || _abort
+  ;;
+esac
+
+case "$opts" in
+  *symlink*)
+    symlink || _abort
+  ;;
+esac
+
+case "$opts" in
+  *crenv*)
+    crenv || _abort
+  ;;
+esac
+
+_exit 0

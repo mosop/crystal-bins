@@ -1,0 +1,46 @@
+#!/bin/sh
+
+print_yn() {
+  eval "v=\$(echo \$$1)"
+  if [ $v -eq 0 ]; then
+    echo $1: no
+  else
+    echo $1: yes
+  fi
+}
+
+print_s() {
+  eval "v=\$(echo \$$1)"
+  echo $1: $v
+}
+
+print_s pkgver
+print_s ver
+print_s rev
+print_s target
+
+print_s llvm_config
+print_s llvm_target
+print_yn is_linux
+print_yn is_alpine
+print_yn is_gnu
+print_yn is_darwin
+print_yn needs_sudo
+
+print_s builddir
+print_s patchesdir
+print_s prefix
+
+print_s mosop_bdwgc_version
+print_s mosop_libatomic_ops_version
+print_s mosop_bdwgc_prefix
+print_s mosop_bdwgc_lib_dir
+print_s mosop_bdwgc_lib
+print_s mosop_bdwgc_pkgconfig_dir
+
+if [ $needs_sudo -eq 1 ]; then
+  echo
+  echo "-----------------------------------------------"
+  echo "You may need to enter your password to install."
+  echo "-----------------------------------------------"
+fi

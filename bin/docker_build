@@ -1,5 +1,23 @@
 #!/usr/bin/env bash
-docker build \
-  --build-arg pkgver=$1 \
-  --build-arg target=$2 \
-  -f dockerfiles/build.Dockerfile -t mosop/crystal-bins-$2:$1 .
+
+root="$( cd "$( dirname "${BASH_SOURCE[0]}" )/.." && pwd )"
+kind=$1
+targetname=$2
+targetver=$3
+
+env="$($root/bin/env)" || _abort
+eval "$env"
+
+image=mosop/crystal-bins-$kind-$targetname-$targetver:$ver
+context=$root/dockerfiles/$kind/$targetname/$targetver
+
+targetbins=$context/crystal-bins
+rm -rf $targetbins
+mkdir -p $targetbins/bin
+cp $root/bin/build $targetbins/bin
+cp $root/bin/env $targetbins/bin
+cp $root/bin/patch $targetbins/bin
+cp $root/bin/print_env $targetbins/bin
+cp -r $root/patches $targetbins/
+
+docker build $ARGS -t $image $context
