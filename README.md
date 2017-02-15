@@ -3,7 +3,7 @@
 This project contains:
 
 * Cross-compiled Crystal compiler Object (.o) files ([Releases](https://github.com/mosop/crystal-bins/releases))
-* Crystal compiler install scripts
+* Crystal compiler build scripts
 * Information about building cross-platform Crystal applications
 
 Experimental.
@@ -14,7 +14,7 @@ Experimental.
 * Mac OS X (tested on Yosemite)
 * Ubuntu (tested on 14.04)
 
-## Build Script
+## Build Script Usage
 
 ### Commands
 
@@ -28,7 +28,7 @@ $ bin/build install
 
 #### build symlink
 
-Installs the executables and creates the symlinks to the crystal and shards executables under /usr/local/bin.
+Installs Crystal and Shard and creates the symlinks to the executables under /usr/local/bin.
 
 ```
 $ bin/build symlink
@@ -44,20 +44,4 @@ $ bin/build crenv
 
 ### Dependencies
 
-You may need to install some tools and libraries for building/running Crystal applications.
-
-#### Linux
-
-See the sample Dockerfiles under the dockerfiles directory.
-
-#### OS X
-
-You need the Xcode command line tools and the following Homebrew packages.
-
-* curl
-* llvm
-* bdw-gc
-* gmp
-* libevent
-* libyaml
-* libxml2
+See Dependencies.md
