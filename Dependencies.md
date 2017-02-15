@@ -14,13 +14,13 @@ BDWGC (Boehm-Demers-Weiser Garbage Collector) is one of the essential libraries 
 
 #### Linux
 
-There is no popular pacakge on the supported Linux distributions. So, my script builds and installs BDWGC by itself.
+There is no popular package on the supported Linux distributions. So, my script builds and installs BDWGC by itself.
 
-My build script does nothing to expose the installed bdwgc into your library path, such as /usr/lib and /usr/local/lib. Instead, the Crystal runner script, that is installed by the build script, sets the LD_LIBRARY_PATH and LIBRARY_PATH environment variables and correctly link to the installed BDWGC shared library.
+My build script does nothing to expose the installed BDWGC into your library path, such as /usr/lib and /usr/local/lib. Instead, the Crystal runner script, that is installed by the build script, sets the LD_LIBRARY_PATH and LIBRARY_PATH environment variables for making the Crystal compiler correctly link to the installed BDWGC shared library.
 
-If you want to move your application binary built by the Crystal compiler, that is installed by the build script, to another machine, make sure that the binary correctly links to BDWGC on the machine. Otherwise, your application fails on startup.
+If you want to move your application binary built by the Crystal compiler to another machine, make sure that the binary correctly links to BDWGC on the machine. Otherwise, your application fails on startup.
 
-I recommend to statically link to BDWGC with the --link-flags option. Because you don't have to install BDWGC into the target machine.
+I recommend linking your application statically to BDWGC with the --link-flags option. Because you don't have to install BDWGC into the target machine.
 
 The BDWGC location that is installed by my build script is `/usr/local/mosop/bdwgc/[version]/lib`. To statically link, specify --link-flags like:
 
@@ -28,13 +28,13 @@ The BDWGC location that is installed by my build script is `/usr/local/mosop/bdw
 --link-flags /usr/local/mosop/bdwgc/[version]/lib/libgc.a
 ```
 
-Note: On OS X, my script does nothing to configure BDWGC. So you have to conditionally set the option for cross-platform build.
+Note: On OS X, my script does nothing to configure BDWGC. So you have to conditionally set the option for cross-platform building.
 
 Currently, my script installs the version 7_6_0 of BDWGC.
 
 #### OS X
 
-There is a Homebrew package for BDWGC. I recommend use the package. My script does nothing to configure BDWGC on OS X.
+There is a Homebrew package for BDWGC. I recommend installing the package. My script does nothing to configure BDWGC on OS X.
 
 ### Build-time Packages (WIP)
 
