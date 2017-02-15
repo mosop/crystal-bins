@@ -121,7 +121,7 @@ export_env mosop_crystal_build_bin $mosop_crystal_build_dir/.bin/crystal
 
 export_env mosop_shards_version 0.7.1
 export_env mosop_shards_build_dir $builddir/shards/$mosop_shards_version
-export_env mosop_shards_build_bin $mosop_crystal_build_dir/bin/shards
+export_env mosop_shards_build_bin $mosop_crystal_build_dir/.bin/shards
 
 export_env mosop_crystal_dir $prefix/crystal/$ver
 export_env mosop_crystal_bin $mosop_crystal_dir/.bin/crystal
