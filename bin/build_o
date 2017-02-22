@@ -26,6 +26,14 @@ tar xzf $ver.tar.gz --strip-components=1 || _abort
 rm $ver.tar.gz
 $root/bin/patch $ver || _abort
 
+objs=""
+for i in $(find src/ext -name '*.c'); do
+  o=`echo $i | sed -e 's/.c$/.o/'`
+  cc -fPIC -c -o $o $i || _abort
+  objs="$objs $o"
+done
+ar -rcs src/ext/libcrystal.a $objs || _abort
+
 for target in ${targets[@]}; do
   base=crystal-$pkgver-$target
   file=$base.o
@@ -41,7 +49,10 @@ for target in ${targets[@]}; do
     else
       llvm_config=`brew --prefix llvm`/bin/llvm-config
     fi
-    LLVM_CONFIG=$llvm_config CRYSTAL_CONFIG_VERSION=$ver crystal build -o $builddir/$base src/compiler/crystal.cr \
+    LLVM_CONFIG=$llvm_config \
+    CRYSTAL_CONFIG_VERSION=$ver \
+    CRYSTAL_PATH=$crystal_o_build_dir/src \
+    /usr/local/mosop/crystal/$current_ver/.bin/crystal build -o $builddir/$base src/compiler/crystal.cr \
       -D i_know_what_im_doing -D without_openssl -D without_zlib \
       --cross-compile --target $target \
       --release \
