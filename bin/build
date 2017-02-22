@@ -212,7 +212,7 @@ install() {
   echo "export CRYSTAL_HAS_WRAPPER=true" | ${sudo}tee -a $script >/dev/null || _abort
   echo "exec \"$mosop_crystal_bin\" \"\$@\"" | ${sudo}tee -a $script >/dev/null || _abort
   echo crystal: $mosop_crystal_dir/bin/crystal
-  echo shards: $mosop_crystal_dir/bin/shards
+  echo shards: $mosop_crystal_dir/.bin/shards
   return 0
 }
 
@@ -220,9 +220,9 @@ symlink() {
   install || _abort
   ${sudo}mkdir -p /usr/local/bin || _abort
   ${sudo}ln -sfn $mosop_crystal_dir/bin/crystal /usr/local/bin/crystal || _abort
-  ${sudo}ln -sfn $mosop_crystal_dir/bin/shards /usr/local/bin/shards || _abort
+  ${sudo}ln -sfn $mosop_crystal_dir/.bin/shards /usr/local/bin/shards || _abort
   echo "/usr/local/bin/crystal -> $mosop_crystal_dir/bin/crystal"
-  echo "/usr/local/bin/crystal -> $mosop_crystal_dir/bin/shards"
+  echo "/usr/local/bin/crystal -> $mosop_crystal_dir/.bin/shards"
   return 0
 }
 
