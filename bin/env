@@ -11,7 +11,7 @@ export_env builddir $root/build
 export_env patchesdir $root/patches
 export_env pkgver 0.21.1-1
 export_env ver `echo $pkgver | sed -e 's/-[0-9]//'`
-export_env rev 20170223
+export_env rev 20170315
 export_env current_ver 0.21.0
 
 which llvm-config-3.9 >/dev/null
